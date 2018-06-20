@@ -67,7 +67,7 @@ if [ $stage -le 0 ]; then
 		    $tmpdir/$fld/lists/trl.txt
 
 		# write a file with a file-id to utterance map. 
-		local/get_prompts.pl $fld
+		python local/get_prompts.py $fld
 
 done
 		"# Acoustic model training requires 4 files containing maps:
