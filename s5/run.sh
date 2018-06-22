@@ -24,7 +24,7 @@ gp_lexicon=/mnt/corpora/Globalphone/GlobalPhoneLexicons/German/German-GPDict.txt
 gp_lm=http://www.csl.uni-bremen.de/GlobalPhone/lm/GE.3gram.lm.gz
 
 # Set a variable to the directory where data preparation will take place
-tmpdir=data/tmp
+tmpdir=data/local/tmp
 
 # The number of jobs you can run will depend on the system
 decoding_jobs=5n
@@ -32,7 +32,7 @@ nj=56
 
 # global phone data prep
 if [ $stage -le 0 ]; then
-	echo STAGE 0
+	echo STAGE 0 --------------------------------------------------------------------------
 	
 	mkdir -p $tmpdir/lists
 
@@ -52,7 +52,6 @@ if [ $stage -le 0 ]; then
 	if [ ! -f "conf/eval_spk.list" ]; then
 		for i in {110..118}; do echo "Recordings-German-$i" >> conf/eval_spk.list; done
 	fi
-
 
 	for fld in dev eval train; do
 		# each fold will have a separate working directory
@@ -95,6 +94,8 @@ if [ $stage -le 0 ]; then
 		sort -o $tmpdir/$fld/lists/utt2spk $tmpdir/$fld/lists/utt2spk
 		cat $tmpdir/$fld/prompts.tsv > $tmpdir/$fld/lists/text
 		
+		utils/fix_data_dir.sh $tmpdir/$fld/lists
+		
 		# consolidate data lists into files under data
 		mkdir -p data/$fld
 		for x in wav.scp text utt2spk; do
@@ -104,15 +105,14 @@ if [ $stage -le 0 ]; then
 		# The spk2utt file can be generated from the utt2spk file. 
 		utils/utt2spk_to_spk2utt.pl data/$fld/utt2spk | sort > data/$fld/spk2utt
 		
-		utils/fix_data_dir.sh data/$fld
-		
+		utils/fix_data_dir.sh data/$fld	
 	done
 fi
 
 
 # Process the pronouncing dictionary
 if [ $stage -le 1 ]; then
-	echo STAGE 1
+	echo STAGE 1 --------------------------------------------------------------------------
 
 	mkdir -p $tmpdir/dict
 
@@ -128,13 +128,13 @@ if [ $stage -le 1 ]; then
 	# 2. A list of silence phones,
 	# 3. A list of silence related questions for model clustering.
 	# 4. A list of optional silence symbols
-	local/prepare_dict.sh
+	local/prepare_dict.sh $tmpdir
 	# The prepared lexicon is also written.
 fi
 
 # prepare lang directory
 if [ $stage -le 2 ]; then
-	echo STAGE 2
+	echo STAGE 2 --------------------------------------------------------------------------
 
 	# The lang directory will contain several files.
 	# Including the finite state transducer file for the lexicon and grammar.
@@ -146,7 +146,29 @@ if [ $stage -le 2 ]; then
 	$tmpdir/lang_tmp $tmpdir/lang
 fi
 
+# prepare the n-gram language model
+if [ $stage -le 3 ]; then
+	echo STAGE 3 --------------------------------------------------------------------------
 
+	mkdir -p data/local/lm
+
+	if [ $use_gp_lm = true ]; then
+		# get the reference lm from Bremen
+		echo get the reference lm from Bremen
+		wget \
+		-O data/local/lm/threegram.arpa.gz \
+		$gp_lm
+	else
+		echo create lm from corpus data
+		# The following command creates an lm with the data:
+		local/prepare_lm.sh $use_dev_and_eval_for_lm
+	fi
+	
+	# Now generate the G.fst file from the lm.
+	utils/format_lm.sh \
+	$tmpdir/lang data/local/lm/threegram.arpa.gz data/local/dict/lexicon.txt \
+	data/lang
+fi
 
 
 

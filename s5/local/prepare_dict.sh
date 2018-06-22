@@ -8,7 +8,7 @@ set -o errexit
 [ -f ./path.sh ] && . ./path.sh
 
 # Assumes the normalized lexicon exists in the following file
-d=data/local/tmp/gp/german/dict/lexicon.txt
+d=$1/dict/lexicon.txt
 # The dictionary will end up under data/local/
 o=data/local/dict
 if [ ! -d $o ]; then
