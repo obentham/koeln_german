@@ -1,22 +1,18 @@
 #!/usr/bin/python
 
-# don't run this script, run words_in_dict.sh
+# 
 
-lexicon = [line.rstrip('\n') for line in open('temp_lexicon.txt')]
+import sys
+import re
 
-temp = [line.rstrip('\n') for line in open('temp_text.txt')]
-text = []
-for s in temp:
-	for w in s.split():
-		text.append(w)
+trl = sys.argv[1]
+pattern = re.compile('.*(Recordings-German-\d*)/(\d*).txt')
 
-counter = 0
+file = [line.rstrip('\n') for line in open(trl)]
 
-print "Words in text not in lexicon (number at bottom)"
-
-for w in text:
-	if w not in lexicon:
-		print w
-		counter+=1
-		
-print "\n", counter, " words"
+for x in file:
+	match = pattern.match(x)
+	spk = match.group(1)
+	textFile = match.group(2)
+	text = open(x).read().rstrip('\n')
+	print spk + "_" + textFile + " " + text
