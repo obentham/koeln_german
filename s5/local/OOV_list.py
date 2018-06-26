@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
-# pass run.log to this function as the only argument. Prints words not in symbol table
+# Prints words not in symbol table
 
 import sys
 import re
 
-log = sys.argv[1]
+log = "./run.log"
 pattern = re.compile('skipped: word \'(.*)\' not in symbol table')
 
 file = [line.rstrip('\n') for line in open(log)]

@@ -3,7 +3,9 @@
 
 # options
 use_gp_lm=false
-use_dev_and_eval_for_lm=false
+include_dev_and_eval_for_lm=true
+use_gp_dict=true
+alt_dict=/home/student/dict_german
 
 # source 2 files to get some environment variables
 . ./cmd.sh
@@ -109,27 +111,33 @@ if [ $stage -le 0 ]; then
 	done
 fi
 
-
 # Process the pronouncing dictionary
 if [ $stage -le 1 ]; then
 	echo STAGE 1 --------------------------------------------------------------------------
 
-	mkdir -p $tmpdir/dict
+	if [ $use_gp_dict = true ]; then
+		echo using gp dictionary
+		mkdir -p $tmpdir/dict
 
-	# The following script is part of the original Globalphone kaldi recipe
-	local/gp_norm_dict_GE.pl -i $gp_lexicon | sort -u > $tmpdir/dict/lexicon.txt
+		# The following script is part of the original Globalphone kaldi recipe
+		local/gp_norm_dict_GE.pl -i $gp_lexicon | sort -u > $tmpdir/dict/lexicon.txt
 
-	# run lexicon through ssconvert
-	bash local/ssconvert.sh $tmpdir/dict/lexicon.txt
+		# run lexicon through ssconvert
+		bash local/ssconvert.sh $tmpdir/dict/lexicon.txt
 
-	# Make some lists related to the lexicon
-	# Including:
-	# 1. A list of non-silence phones,
-	# 2. A list of silence phones,
-	# 3. A list of silence related questions for model clustering.
-	# 4. A list of optional silence symbols
-	local/prepare_dict.sh $tmpdir
-	# The prepared lexicon is also written.
+		# Make some lists related to the lexicon
+		# Including:
+		# 1. A list of non-silence phones,
+		# 2. A list of silence phones,
+		# 3. A list of silence related questions for model clustering.
+		# 4. A list of optional silence symbols
+		local/prepare_dict.sh $tmpdir
+		# The prepared lexicon is also written.
+	else
+		echo using alternate dictionary
+		rm -f -r data/local/dict
+		cp -r $alt_dict data/local/dict
+	fi
 fi
 
 # prepare lang directory
@@ -161,7 +169,7 @@ if [ $stage -le 3 ]; then
 	else
 		echo create lm from corpus data
 		# The following command creates an lm with the data:
-		local/prepare_lm.sh $use_dev_and_eval_for_lm
+		local/prepare_lm.sh $include_dev_and_eval_for_lm
 	fi
 	
 	# Now generate the G.fst file from the lm.
