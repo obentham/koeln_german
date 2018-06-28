@@ -336,8 +336,6 @@ if [ $stage -le 17 ]; then
     ) &
 fi
 
-exit
-
 # chain models train, decode, and test
 if [ $stage -le 18 ]; then
 	echo STAGE 18 --------------------------------------------------------------------------
