@@ -1,0 +1,1 @@
+/home/student/koeln_german/s5/steps/score_kaldi.sh

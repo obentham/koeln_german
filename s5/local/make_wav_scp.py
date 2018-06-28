@@ -31,4 +31,4 @@ for x in file:
 	elif int(textFile) < 1000 :
 		append2 = "0"
 	
-	print append1 + spk + "_" + append2 + textFile + " sox " + x + " -t .wav - |"
+	print append1 + spk + "_" + append2 + textFile + " sox -b 16 -r 22050 " + x + " -r 16k -t .wav - |"
