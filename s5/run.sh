@@ -5,7 +5,7 @@
 use_gp_lm=false
 include_dev_and_eval_for_lm=true
 use_gp_dict=false
-alt_dict=/home/student/dict_german
+alt_dict=/home/larocca2/dict_german
 
 # source 2 files to get some environment variables
 . ./cmd.sh
