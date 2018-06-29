@@ -3,9 +3,16 @@
 
 # options
 use_gp_lm=false
+use_alt_lm=true
+# if both of the above are set to false,
+# an lm will be created from data with option below
 include_dev_and_eval_for_lm=true
+
 use_gp_dict=false
-alt_dict=/home/larocca2/dict_german
+
+alt_lm=/home/larocca2/german/lm
+alt_dict=/home/larocca2/german/dict
+
 
 # source 2 files to get some environment variables
 . ./cmd.sh
@@ -162,6 +169,10 @@ if [ $stage -le 3 ]; then
 		wget \
 		-O data/local/lm/threegram.arpa.gz \
 		$gp_lm
+	elif [ $use_alt_lm = true ]; then
+		echo using alternate lm
+		rm -f -r data/local/lm
+		cp -r $alt_lm data/local/lm
 	else
 		echo create lm from corpus data
 		# The following command creates an lm with the data:
@@ -237,6 +248,8 @@ if [ $stage -le 8 ]; then
     ) &
     # Testing can be run in the background
 fi
+
+exit
 
 # tri1 training
 if [ $stage -le 9 ]; then
