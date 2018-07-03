@@ -103,6 +103,7 @@ for f in $gmm_dir/final.mdl $train_data_dir/feats.scp $train_ivector_dir/ivector
 done
 
 if [ $stage -le 10 ]; then
+  echo CHAIN STAGE 10 --------------------------------------------------------------------------
   echo "$0: creating lang directory $lang with chain-type topology"
   # Create a version of the lang/ directory that has one state per phone in the
   # topo file. [note, it really has two states.. the first one is only repeated
@@ -126,6 +127,7 @@ if [ $stage -le 10 ]; then
 fi
 
 if [ $stage -le 11 ]; then
+  echo CHAIN STAGE 11 --------------------------------------------------------------------------
   # Get the alignments as lattices (gives the chain training more freedom).
   # use the same num-jobs as the alignments
   steps/align_fmllr_lats.sh --nj 75 --cmd "$train_cmd" ${lores_train_data_dir} \
@@ -134,6 +136,7 @@ if [ $stage -le 11 ]; then
 fi
 
 if [ $stage -le 12 ]; then
+  echo CHAIN STAGE 12 --------------------------------------------------------------------------
   # Build a tree using our new topology.  We know we have alignments for the
   # speed-perturbed data (local/nnet3/run_ivector_common.sh made them), so use
   # those.  The num-leaves is always somewhat less than the num-leaves from
@@ -151,6 +154,7 @@ fi
 
 
 if [ $stage -le 13 ]; then
+  echo CHAIN STAGE 13 --------------------------------------------------------------------------
   mkdir -p $dir
   echo "$0: creating neural net configs using the xconfig parser";
 
@@ -196,6 +200,7 @@ fi
 
 
 if [ $stage -le 14 ]; then
+  echo CHAIN STAGE 14 --------------------------------------------------------------------------
   if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $dir/egs/storage ]; then
     utils/create_split_dir.pl \
      /export/b0{3,4,5,6}/$USER/kaldi-data/egs/mini_librispeech-$(date +'%m_%d_%H_%M')/s5/$dir/egs/storage $dir/egs/storage
@@ -239,14 +244,16 @@ if [ $stage -le 14 ]; then
 fi
 
 if [ $stage -le 15 ]; then
+  echo CHAIN STAGE 15 --------------------------------------------------------------------------
   # Note: it's not important to give mkgraph.sh the lang directory with the
   # matched topology (since it gets the topology file from the model).
   utils/mkgraph.sh \
-    --self-loop-scale 1.0 data/lang_test_tgsmall \
+    --self-loop-scale 1.0 data/lang \
     $tree_dir $tree_dir/graph_tgsmall || exit 1;
 fi
 
 if [ $stage -le 16 ]; then
+  echo CHAIN STAGE 16 --------------------------------------------------------------------------
   frames_per_chunk=$(echo $chunk_width | cut -d, -f1)
   rm $dir/.error 2>/dev/null || true
 
@@ -277,6 +284,7 @@ fi
 # normal decoding.
 
 if $test_online_decoding && [ $stage -le 17 ]; then
+  echo CHAIN STAGE 17 --------------------------------------------------------------------------
   # note: if the features change (e.g. you add pitch features), you will have to
   # change the options of the following command line.
   steps/online/nnet3/prepare_online_decoding.sh \
