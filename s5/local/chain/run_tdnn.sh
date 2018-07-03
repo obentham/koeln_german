@@ -271,8 +271,8 @@ if [ $stage -le 16 ]; then
           --online-ivector-dir exp/nnet3${nnet3_affix}/ivectors_${data}_hires \
           $tree_dir/graph_tgsmall data/${data}_hires ${dir}/decode_tgsmall_${data} || exit 1
       steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
-        data/lang_test_{tgsmall,tglarge} \
-       data/${data}_hires ${dir}/decode_{tgsmall,tglarge}_${data} || exit 1
+        data/lang_test \
+       data/${data}_hires ${dir}/decode_tgsmall_${data} || exit 1
     ) || touch $dir/.error &
   done
   wait
