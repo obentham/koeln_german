@@ -3,15 +3,20 @@
 
 # options
 use_gp_lm=false
-use_alt_lm=true
+use_alt_lm=false
+
 # if both of the above are set to false,
-# an lm will be created from data with option below
-include_dev_and_eval_for_lm=true
+# an lm will be created from data with options below
+include_dev_in_lm=true
+include_eval_in_lm=false
+include_subs_in_lm=true
+include_gp_train_in_lm=true
 
 use_gp_dict=false
 
-alt_lm=/home/larocca2/german/lm
-alt_dict=/home/larocca2/german/dict
+# directory paths
+alt_lm=~/german/lm
+alt_dict=~/german/dict
 
 
 # source 2 files to get some environment variables
@@ -27,6 +32,7 @@ stage=0
 # Set the locations of the corpus and language models
 koeln_corpus=/mnt/corpora/german
 gp_corpus=/mnt/corpora/Globalphone/DEU_ASR003_WAV
+subtitles=http://opus.nlpl.eu/download.php?f=OpenSubtitles2018/mono/OpenSubtitles2018.de.gz
 
 gp_lexicon=/mnt/corpora/Globalphone/GlobalPhoneLexicons/German/German-GPDict.txt
 
@@ -45,6 +51,13 @@ if [ $stage -le 0 ]; then
 	echo STAGE 0 --------------------------------------------------------------------------
 	
 	mkdir -p $tmpdir/lists
+
+	if [ $use_gp_lm = false && $use_alt_lm = false && $include_subs_in_lm = true ]; then
+		echo downloading/unzipping subtitles
+		mkdir -p $tmpdir/subs
+		wget -O $tmpdir/subs/subs.de.gz $subtitles
+		gunzip -c $tmpdir/subs/subs.de.gz > $tmpdir/subs/subs.txt 
+	fi
 
 	# get list of globalphone .wav files
 	find $koeln_corpus/read -type f -name "*.wav" > $tmpdir/lists/wav.txt
@@ -128,13 +141,13 @@ if [ $stage -le 0 ]; then
 		# the conf/eval_spk.list file has a list of the speakers in the testing fold.
 		# The following command will get the list .wav files restricted to only the speakers in 			the current fold.
 		grep \
-	    	-f conf/${fld}_spk.list  $tmpdir/lists/wav.txt  > \
-	    	$tmpdir/$fld/lists/wav.txt
+			-f conf/${fld}_spk.list $tmpdir/lists/wav.txt > \
+			$tmpdir/$fld/lists/wav.txt
 
 		# Similarly for the .trl files that contain transliterations.
 		grep \
-		    -f conf/${fld}_spk.list  $tmpdir/lists/trl.txt  > \
-		    $tmpdir/$fld/lists/trl.txt
+			-f conf/${fld}_spk.list $tmpdir/lists/trl.txt > \
+			$tmpdir/$fld/lists/trl.txt
 
 		# write a file with a file-id to utterance map. 
 		local/get_prompts.pl $fld
@@ -151,7 +164,7 @@ if [ $stage -le 0 ]; then
 
 		utils/fix_data_dir.sh $tmpdir/$fld/lists
 
-		# consolidate  data lists into files under data
+		# consolidate data lists into files under data
 		mkdir -p data/$fld
 		for x in wav.scp text utt2spk; do
 			# lowercase, ß to ss, remove commas in text files
@@ -170,10 +183,8 @@ if [ $stage -le 0 ]; then
 		utils/utt2spk_to_spk2utt.pl data/$fld/utt2spk | sort > data/$fld/spk2utt
 
 		utils/fix_data_dir.sh data/$fld
-    done
+	done
 fi
-
-exit
 
 # Process the pronouncing dictionary
 if [ $stage -le 1 ]; then
@@ -236,8 +247,38 @@ if [ $stage -le 3 ]; then
 		cp -r $alt_lm data/local/lm
 	else
 		echo create lm from corpus data
+
+		# use training prompts
+		cut -f 2- -d ' ' data/train/text > data/local/lm/training_text.txt
+		if [ $include_dev_in_lm = true ]; then
+			cut -f 2- -d ' ' data/dev/text >> data/local/lm/training_text.txt
+		elif [ $include_eval_in_lm = true ]; then
+			cut -f 2- -d ' ' data/eval/text >> data/local/lm/training_text.txt
+		elif [ $include_subs_in_lm = true ]; then
+			echo processing subtitles
+			python local/subs_prepare_data.py $tmpdir/subs/subs.txt \
+				> $tmpdir/subs/subs_filtered.txt
+			sort -u $tmpdir/subs/subs_filtered.txt > $tmpdir/subs/subs_uniq.txt
+			cat $tmpdir/subs/subs_uniq.txt >> data/local/lm/training_text.txt
+		elif [ $include_gp_train_in_lm = true ]; then
+			echo include gp train in lm
+			mkdir -p $tmpdir/gp_train
+			
+			grep \
+			-f conf/gp_train_spk.list $tmpdir/lists/trl.txt > \
+			$tmpdir/gp_train/text
+			
+			bash local/lowercase.sh $tmpdir/gp_train/text
+			bash local/ssconvert.sh $tmpdir/gp_train/text
+			bash local/remove_commas.sh $tmpdir/gp_train/text
+			cat $tmpdir/gp_train/text | expand -t 1 | dos2unix | sort -u -o $tmpdir/gp_train/text
+			
+			cut -f 2- -d ' ' $tmpdir/gp_train/text >> data/local/lm/training_text.txt	
+			
+		fi
+		
 		# The following command creates an lm with the data:
-		local/prepare_lm.sh $include_dev_and_eval_for_lm
+		local/prepare_lm.sh
 	fi
 	
 	# Now generate the G.fst file from the lm.
@@ -279,46 +320,44 @@ fi
 if [ $stage -le 6 ]; then
 	echo STAGE 6 --------------------------------------------------------------------------
 
-    # This is the first of several acoustic model training steps.
-    # Context independent phones are trained.
-    echo "Starting  monophone training in exp/mono on" `date`
-    steps/train_mono.sh data/train data/lang exp/mono
+	# This is the first of several acoustic model training steps.
+	# Context independent phones are trained.
+	echo "Starting monophone training in exp/mono on" `date`
+	steps/train_mono.sh data/train data/lang exp/mono
 fi
 
 # monophone alignment
 if [ $stage -le 7 ]; then
 	echo STAGE 7 --------------------------------------------------------------------------
 
-    # This step uses the monophones just trained to time align the data
-    steps/align_si.sh data/train data/lang exp/mono exp/mono_ali
+	# This step uses the monophones just trained to time align the data
+	steps/align_si.sh data/train data/lang exp/mono exp/mono_ali
 fi
 
 # monophone decode & test
 if [ $stage -le 8 ]; then
 	echo STAGE 8 --------------------------------------------------------------------------
 
-    # Test the monophone models.
-    (
+	# Test the monophone models.
+	(
 	# A graph is required for decoding.
 	utils/mkgraph.sh data/lang_test exp/mono exp/mono/graph
 
 	for fld in dev eval; do
-	    # The following command does speech recognition using the monophone models 
-	    steps/decode.sh exp/mono/graph data/$fld exp/mono/decode_${fld}
+		# The following command does speech recognition using the monophone models 
+		steps/decode.sh exp/mono/graph data/$fld exp/mono/decode_${fld}
 	done
-    ) &
-    # Testing can be run in the background
+	) &
+	# Testing can be run in the background
 fi
-
-exit
 
 # tri1 training
 if [ $stage -le 9 ]; then
 	echo STAGE 9 --------------------------------------------------------------------------
 	
-    # This is the first step  for training context dependent acoustic models
-    echo "Starting  triphone training in exp/tri1 on" `date`
-    steps/train_deltas.sh \
+	# This is the first step for training context dependent acoustic models
+	echo "Starting triphone training in exp/tri1 on" `date`
+	steps/train_deltas.sh \
 	--cluster-thresh 100 3100 50000 data/train data/lang exp/mono_ali \
 	exp/tri1
 fi
@@ -327,31 +366,31 @@ fi
 if [ $stage -le 10 ]; then
 	echo STAGE 10 --------------------------------------------------------------------------
 	
-    # align with triphones
-    steps/align_si.sh data/train data/lang exp/tri1 exp/tri1_ali
+	# align with triphones
+	steps/align_si.sh data/train data/lang exp/tri1 exp/tri1_ali
 fi
 
 # tri1 decode & test
 if [ $stage -le 11 ]; then
 	echo STAGE 11 --------------------------------------------------------------------------
 	
-    # Test the triphone models.
-    (
+	# Test the triphone models.
+	(
 	utils/mkgraph.sh data/lang_test exp/tri1 exp/tri1/graph
 
 	for fld in dev eval; do
-	    steps/decode.sh exp/tri1/graph data/$fld exp/tri1/decode_${fld}
+		steps/decode.sh exp/tri1/graph data/$fld exp/tri1/decode_${fld}
 	done
-    ) &
+	) &
 fi
 
 # tri2b training
 if [ $stage -le 12 ]; then
 	echo STAGE 12 --------------------------------------------------------------------------
 	
-    # Trains with front end feature adaptation.
-    echo "Starting (lda_mllt) triphone training in exp/tri2b on" `date`
-    steps/train_lda_mllt.sh \
+	# Trains with front end feature adaptation.
+	echo "Starting (lda_mllt) triphone training in exp/tri2b on" `date`
+	steps/train_lda_mllt.sh \
 	--splice-opts "--left-context=3 --right-context=3" \
 	3100 50000 data/train data/lang exp/tri1_ali exp/tri2b
 fi
@@ -360,8 +399,8 @@ fi
 if [ $stage -le 13 ]; then
 	echo STAGE 13 --------------------------------------------------------------------------
 	
-    # align with lda and mllt adapted triphones
-    steps/align_si.sh \
+	# align with lda and mllt adapted triphones
+	steps/align_si.sh \
 	--use-graphs true data/train data/lang exp/tri2b exp/tri2b_ali
 fi
 
@@ -369,55 +408,51 @@ fi
 if [ $stage -le 14 ]; then
 	echo STAGE 14 --------------------------------------------------------------------------
 	
-    # Decode tri2b
-    (
+	# Decode tri2b
+	(
 	utils/mkgraph.sh data/lang_test exp/tri2b exp/tri2b/graph
 
 	for fld in dev eval; do
-	    steps/decode.sh exp/tri2b/graph data/$fld exp/tri2b/decode_${fld}
+		steps/decode.sh exp/tri2b/graph data/$fld exp/tri2b/decode_${fld}
 	done
-    ) &
+	) &
 fi
-
-exit
 
 # tri3b training
 if [ $stage -le 15 ]; then
 	echo STAGE 15 --------------------------------------------------------------------------
 	
-    # Models are speaker adapted.
-        echo "Starting (SAT) triphone training in exp/tri3b on" `date`
-    steps/train_sat.sh 3100 50000 data/train data/lang exp/tri2b_ali exp/tri3b
+	# Models are speaker adapted.
+		echo "Starting (SAT) triphone training in exp/tri3b on" `date`
+	steps/train_sat.sh 3100 50000 data/train data/lang exp/tri2b_ali exp/tri3b
 fi
 
 # tri3b alignment
 if [ $stage -le 16 ]; then
 	echo STAGE 16 --------------------------------------------------------------------------
 	
-    echo "Starting exp/tri3b_ali on" `date`
-    steps/align_fmllr.sh data/train data/lang exp/tri3b exp/tri3b_ali
+	echo "Starting exp/tri3b_ali on" `date`
+	steps/align_fmllr.sh data/train data/lang exp/tri3b exp/tri3b_ali
 fi
 
 # tri3b decode & test
 if [ $stage -le 17 ]; then
 	echo STAGE 17 --------------------------------------------------------------------------
 	
-    (
+	(
 	utils/mkgraph.sh data/lang_test exp/tri3b exp/tri3b/graph
 
 	for fld in dev eval; do
-	    steps/decode_fmllr.sh \
+		steps/decode_fmllr.sh \
 		exp/tri3b/graph data/$fld exp/tri3b/decode_${fld}
 	done
-    ) &
+	) &
 fi
-
-exit
 
 # chain models train, decode, and test
 if [ $stage -le 18 ]; then
 	echo STAGE 18 --------------------------------------------------------------------------
 	
-    local/chain/run_tdnn.sh
+	local/chain/run_tdnn.sh
 fi
 

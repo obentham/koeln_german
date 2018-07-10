@@ -6,7 +6,9 @@
 . ./cmd.sh
 . ./path.sh
 
-nohup arpa2fst --max-arpa-warnings=-1 --disambig-symbol=#0 --read-symbol-table=data/lang/words.txt data/local/lm/threegram.arpa data/lang/G.fst > OOV.txt
+gunzip -c data/local/lm/threegram.arpa.gz > data/local/lm/threegram.arpa
+
+nohup arpa2fst --max-arpa-warnings=-1 --disambig-symbol=#0 --read-symbol-table=data/lang/words.txt data/local/lm/threegram.arpa data/lang/G.fst > OOV.txt &
 
 sed -i -e 's/^.*word '\''//g' OOV.txt
 sed -i -e 's/'\'' not.*$//g' OOV.txt
