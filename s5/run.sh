@@ -52,10 +52,11 @@ if [ $stage -le 0 ]; then
 	
 	mkdir -p $tmpdir/lists
 
-	if [ $use_gp_lm = false && $use_alt_lm = false && $include_subs_in_lm = true ]; then
-		echo downloading/unzipping subtitles
+	if [ $use_gp_lm = false ] && [ $use_alt_lm = false ] && [ $include_subs_in_lm = true ]; then
+		echo downloading subtitles
 		mkdir -p $tmpdir/subs
-		wget -O $tmpdir/subs/subs.de.gz $subtitles
+		wget -nv -O $tmpdir/subs/subs.de.gz $subtitles
+		echo unzipping subtitles
 		gunzip -c $tmpdir/subs/subs.de.gz > $tmpdir/subs/subs.txt 
 	fi
 
@@ -71,7 +72,8 @@ if [ $stage -le 0 ]; then
 	# rm conf/dev_spk.list conf/eval_spk.list
 
 	# assign speakers to train, dev, and eval
-	for i in {1..100}; do echo "Recordings-German-$i" >> conf/train_spk.list; done
+	for i in {1..118}; do echo "Recordings-German-$i" >> conf/train_spk.list; done
+	# for i in {1..100}; do echo "Recordings-German-$i" >> conf/train_spk.list; done
 	# for i in {101..109}; do echo "Recordings-German-$i" >> conf/dev_spk.list; done
 	# for i in {110..118}; do echo "Recordings-German-$i" >> conf/eval_spk.list; done
 
