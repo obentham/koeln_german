@@ -14,9 +14,9 @@ stage=0
 decoding_jobs=5n
 nj=56
 
-for leaves in {3000..7000..1000}
+for leaves in {3000..4000..250}
 do
-	for gauss in {40000..80000..10000}
+	for gauss in {30000..70000..10000}
 	do
 		# tri3b training
 		if [ $stage -le 1 ]; then
@@ -41,6 +41,7 @@ do
 		if [ $stage -le 3 ]; then
 			echo STAGE 3 l:$leaves g:$gauss ----------------------------------------------------
 	
+			(
 			utils/mkgraph.sh data/lang_test exp/tri3b_${leaves}_${gauss} \
 			exp/tri3b_${leaves}_${gauss}/graph
 
@@ -48,8 +49,9 @@ do
 				steps/decode_fmllr.sh exp/tri3b_${leaves}_${gauss}/graph \
 				data/$fld exp/tri3b_${leaves}_${gauss}/decode_${fld}
 			done
+			) &
 		fi
 		
 	done
-	
+	wait
 done

@@ -7,7 +7,7 @@ use_alt_lm=false
 
 # if both of the above are set to false,
 # an lm will be created from data with options below
-include_dev_in_lm=true
+include_dev_in_lm=false
 include_eval_in_lm=false
 include_subs_in_lm=true
 include_gp_train_in_lm=true
