@@ -186,6 +186,56 @@ if [ $stage -le 0 ]; then
 
 		utils/fix_data_dir.sh data/$fld
 	done
+	
+	# This is the data preparation for the unlabeled data to be used in semi-supervised learning
+	mkdir -p $tmpdir/unlabeled/lists
+
+	# get list of globalphone .wav files
+	find $koeln_corpus/CTELL1 -type f -name "*.wav" > $tmpdir/unlabeled/lists/wav.txt
+	find $koeln_corpus/CTELL2 -type f -name "*.wav" >> $tmpdir/unlabeled/lists/wav.txt
+	find $koeln_corpus/CTELL3 -type f -name "*.wav" >> $tmpdir/unlabeled/lists/wav.txt
+	find $koeln_corpus/CTELL4 -type f -name "*.wav" >> $tmpdir/unlabeled/lists/wav.txt
+	find $koeln_corpus/CTELL5 -type f -name "*.wav" >> $tmpdir/unlabeled/lists/wav.txt
+	
+	rm -f conf/unlabeled_spk.list 
+	# rm conf/dev_spk.list conf/eval_spk.list
+
+	# assign speakers to train, dev, and eval
+	for i in {1..118}; do echo "Answers-German-$i" >> conf/unlabeled_spk.list; done
+
+	sort -o $tmpdir/unlabeled/lists/wav.txt $tmpdir/unlabeled/lists/wav.txt
+
+	# write a file with a file-id to utterance map. 
+	python local/semi_supervised/get_prompts.py \
+		$tmpdir/unlabeled/lists/wav.txt > $tmpdir/unlabeled/prompts.tsv
+
+	# Acoustic model training requires 4 files containing maps:
+	# 1. wav.scp
+	# 2. utt2spk
+	# 3. spk2utt
+	# 4. text
+
+	# make the required acoustic model training lists
+	# This is first done in the temporary working directory.
+	python local/semi_supervised/make_wav_scp.py \
+		$tmpdir/unlabeled/lists/wav.txt > $tmpdir/unlabeled/lists/wav.scp
+	python local/semi_supervised/make_utt2spk.py \
+		$tmpdir/unlabeled/lists/wav.txt > $tmpdir/unlabeled/lists/utt2spk
+	sort -o $tmpdir/unlabeled/lists/utt2spk $tmpdir/unlabeled/lists/utt2spk
+	cat $tmpdir/unlabeled/prompts.tsv > $tmpdir/unlabeled/lists/text
+		
+	utils/fix_data_dir.sh $tmpdir/unlabeled/lists
+	
+	# consolidate data lists into files under data
+	mkdir -p data/unlabeled
+	for x in wav.scp text utt2spk; do
+		cat $tmpdir/unlabeled/lists/$x | expand -t 1 | dos2unix | sort > data/unlabeled/$x
+	done
+		
+	# The spk2utt file can be generated from the utt2spk file. 
+	utils/utt2spk_to_spk2utt.pl data/unlabeled/utt2spk | sort > data/unlabeled/spk2utt
+	
+	utils/fix_data_dir.sh data/unlabeled
 fi
 
 # Process the pronouncing dictionary
@@ -307,7 +357,7 @@ if [ $stage -le 5 ]; then
 	# This stage will create the exp directory where most of the rest of the work will take place.
 	# The feature files will be stored under plp_pitch
 	# plp and pitch features are extracted.
-	for fld in dev eval train ; do
+	for fld in dev eval train unlabeled ; do
 		steps/make_plp_pitch.sh data/$fld exp/make_plp_pitch/$fld plp_pitch
 
 		utils/fix_data_dir.sh data/$fld
@@ -444,12 +494,14 @@ if [ $stage -le 17 ]; then
 	(
 	utils/mkgraph.sh data/lang_test exp/tri3b exp/tri3b/graph
 
-	for fld in dev eval; do
+	for fld in dev eval unlabeled ; do
 		steps/decode_fmllr.sh \
 		exp/tri3b/graph data/$fld exp/tri3b/decode_${fld}
 	done
 	) &
 fi
+
+exit
 
 # chain models train, decode, and test
 if [ $stage -le 18 ]; then
