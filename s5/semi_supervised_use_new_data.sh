@@ -60,6 +60,55 @@ fi
 if [ $stage -le 0 ]; then
 	echo STAGE 0 --------------------------------------------------------------------------
 	
+	# This is the data preparation for the unlabeled data to be used in semi-supervised learning
+	mkdir -p $tmpdir/unlabeled/lists
+
+	# get list of globalphone .wav files
+	find $koeln_corpus/CTELL1 -type f -name "*.wav" > $tmpdir/unlabeled/lists/wav.txt
+	find $koeln_corpus/CTELL2 -type f -name "*.wav" >> $tmpdir/unlabeled/lists/wav.txt
+	find $koeln_corpus/CTELL3 -type f -name "*.wav" >> $tmpdir/unlabeled/lists/wav.txt
+	find $koeln_corpus/CTELL4 -type f -name "*.wav" >> $tmpdir/unlabeled/lists/wav.txt
+	find $koeln_corpus/CTELL5 -type f -name "*.wav" >> $tmpdir/unlabeled/lists/wav.txt
+	
+	rm -f conf/unlabeled_spk.list 
+	# rm conf/dev_spk.list conf/eval_spk.list
+
+	# assign speakers to train, dev, and eval
+	for i in {1..118}; do echo "Answers-German-$i" >> conf/unlabeled_spk.list; done
+
+	sort -o $tmpdir/unlabeled/lists/wav.txt $tmpdir/unlabeled/lists/wav.txt
+
+	# write a file with a file-id to utterance map. 
+	cat unlabeled_text.txt > $tmpdir/unlabeled/prompts.tsv
+
+	# Acoustic model training requires 4 files containing maps:
+	# 1. wav.scp
+	# 2. utt2spk
+	# 3. spk2utt
+	# 4. text
+
+	# make the required acoustic model training lists
+	# This is first done in the temporary working directory.
+	python local/semi_supervised/make_wav_scp_second_pass.py \
+		$tmpdir/unlabeled/lists/wav.txt > $tmpdir/unlabeled/lists/wav.scp
+	python local/semi_supervised/make_utt2spk_second_pass.py \
+		$tmpdir/unlabeled/lists/wav.txt > $tmpdir/unlabeled/lists/utt2spk
+	sort -o $tmpdir/unlabeled/lists/utt2spk $tmpdir/unlabeled/lists/utt2spk
+	cat $tmpdir/unlabeled/prompts.tsv > $tmpdir/unlabeled/lists/text
+		
+	utils/fix_data_dir.sh $tmpdir/unlabeled/lists
+	
+	# consolidate data lists into files under data
+	mkdir -p data/unlabeled
+	for x in wav.scp text utt2spk; do
+		cat $tmpdir/unlabeled/lists/$x | expand -t 1 | dos2unix | sort > data/unlabeled/$x
+	done
+		
+	# The spk2utt file can be generated from the utt2spk file. 
+	utils/utt2spk_to_spk2utt.pl data/unlabeled/utt2spk | sort > data/unlabeled/spk2utt
+	
+	# data prep for regular files
+	
 	mkdir -p $tmpdir/lists
 
 	# get list of globalphone .wav files
@@ -103,6 +152,7 @@ if [ $stage -le 0 ]; then
 
 		# write a file with a file-id to utterance map. 
 		python local/get_prompts.py $tmpdir/$fld/lists/trl.txt > $tmpdir/$fld/prompts.tsv
+		cat unlabeled_text.txt >> $tmpdir/$fld/prompts.tsv
 		# lowercase, ß to ss, remove commas in text files
 		bash local/lowercase.sh $tmpdir/$fld/prompts.tsv
 		bash local/remove_commas.sh $tmpdir/$fld/prompts.tsv
@@ -134,6 +184,12 @@ if [ $stage -le 0 ]; then
 		
 		utils/fix_data_dir.sh data/$fld	
 	done
+	
+	# combine unlabeled files with training files
+	cat data/unlabeled/wav.scp >> data/train/wav.scp
+	cat data/unlabeled/utt2spk >> data/train/utt2spk
+	cat data/unlabeled/spk2utt >> data/train/spk2utt
+	cat data/unlabeled/text >> data/train/text
 	
 	# Create dev and eval from GlobalPhone data
 	for fld in dev eval; do
@@ -239,6 +295,8 @@ if [ $stage -le 0 ]; then
 	
 	utils/fix_data_dir.sh data/unlabeled
 fi
+
+exit
 
 # Process the pronouncing dictionary
 if [ $stage -le 1 ]; then
