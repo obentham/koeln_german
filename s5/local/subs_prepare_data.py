@@ -1,55 +1,65 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Created on Tue Jul 24 11:22:55 2018
 
-# 300,000
+@author: Gerry Cervantes
+"""
 
-import sys 
-import re 
-import string
-from sets import Set
+import re
+import sys
 
 lower_bound = 8
 upper_bound = 25
-#num_sentences = 300000
 
-chars_to_skip = "[♪−‚–´°¬©_`=#³+-/*\{\}\[\])(\\~|@]" #ЯьΡŠûυ
-profanity = "scheiss|fick| arsch|hurensohn"
-
-# make hash with words in lexicon
-#words = set()
-#f = "data/lang/words.txt"
-#for line in open(f):
-#	words.add(line.split()[0])
-#
-#def has_OOV(sentence):
-	
+chars_to_skip =["♪","−","‚","–","´","°","¬","©","_","`","=","#","³","+","-","/","*","{","}","[","]",")","(","~","|","@"] #ЯьΡŠûυ
+profanity_list = ["scheiss","fick"," arsch","hurensohn","two and","subcentral"]
 
 
-f = sys.argv[1]
-counter = 1
 
-for i, line in enumerate(open(f)):
-	#if num_sentences < counter:
-	#	break
-		
+file_path = sys.argv[1]
+
+def has_profanity(line, profanity_list):
+	for profanity in profanity_list:
+		if profanity in line: return True
+	return False
+
+def has_specified_chars(line, chars_to_skip):
+	for invalid_char in chars_to_skip:
+		if invalid_char in line: return True
+	return False
+
+def is_valid_length_line(line, lower_bound, upper_bound):
 	line_length = len(line.split())
+	return line_length > lower_bound and line_length < upper_bound:
+
+
+for line in open(file_path):
+
+	# lowercase
+	line = line.lower()
+
+	is_valid_line = not has_profanity(line, profanity_list) and not has_specified_chars(line, chars_to_skip)
 	
-	if (line_length > lower_bound and line_length < upper_bound and 
-	not re.search(chars_to_skip,line) and not re.search(profanity,line)):
-		
-		# lowercase
-		line = line.lower()
-		#convert ß to ss
-		line = re.sub("ß","ss",line)
+	is_valid_line = is_valid_line and is_valid_length_line(line, lower_bound, upper_bound)
+	
+	if is_valid_line:
+
+		# some manual lowercasingÄ
+		line = re.sub("Ü", "ü", line)
+		line = re.sub("Ä", "ä", line)
+		line = re.sub("Ö", "ö", line)
+		# convert ß to ss
+		line = re.sub("ß", "ss", line)
 		# remove common punctuation
-		line = re.sub("[.!?\"\',:;]","",line)
+		line = re.sub("[.!?\"\',:;]", "", line)
 		# convert tab to space
-		line = re.sub("	"," ",line)
+		line = re.sub("	" ," ", line)
 		# squeeze white space
-		line = re.sub("\s+"," ",line)
+		line = re.sub("\s+" ," ", line)
 		# remove whitespace at beginning and end of line
-		line = re.sub("^\s","",line)
-		line = re.sub("\s$","",line)
-		#print counter, '\t', i, '\t', words, '\t', line
-		print line
-		counter += 1
+		line = re.sub("^\s", "", line)
+		line = re.sub("\s$", "", line)
+		print(line)
+
+

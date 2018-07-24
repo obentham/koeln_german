@@ -306,23 +306,40 @@ if [ $stage -le 3 ]; then
 		cut -f 2- -d ' ' data/train/text > data/local/lm/training_text.txt
 		if [ $include_dev_in_lm = true ]; then
 			cut -f 2- -d ' ' data/dev/text >> data/local/lm/training_text.txt
-		elif [ $include_eval_in_lm = true ]; then
+		fi
+		if [ $include_eval_in_lm = true ]; then
 			cut -f 2- -d ' ' data/eval/text >> data/local/lm/training_text.txt
-		elif [ $include_subs_in_lm = true ]; then
+		fi
+		if [ $include_subs_in_lm = true ]; then
 			echo processing subtitles
-			python local/subs_prepare_data.py $tmpdir/subs/subs.txt \
-				> $tmpdir/subs/subs_filtered.txt
-			sort -u $tmpdir/subs/subs_filtered.txt > $tmpdir/subs/subs_uniq.txt
-			cat $tmpdir/subs/subs_uniq.txt >> data/local/lm/training_text.txt
-		elif [ $include_gp_train_in_lm = true ]; then
+			if [ ! -f $tmpdir/subs/subs.txt ]; then
+				echo subtitles not downloaded, downloading now
+				mkdir -p $tmpdir/subs
+				wget -nv -O $tmpdir/subs/subs.de.gz $subtitles
+				echo unzipping subtitles
+				gunzip -c $tmpdir/subs/subs.de.gz > $tmpdir/subs/subs.txt 
+			fi
+			#python local/subs_prepare_data.py $tmpdir/subs/subs.txt \
+			#	> $tmpdir/subs/subs_filtered.txt
+			#sort -u $tmpdir/subs/subs_filtered.txt > $tmpdir/subs/subs_uniq.txt
+			sort -u $tmpdir/subs/subs.txt > $tmpdir/subs/subs_uniq.txt
+			python local/select_n.py 1000000 $tmpdir/subs/subs_uniq.txt \
+				> $tmpdir/subs/subs_final.txt
+			cat $tmpdir/subs/subs_final.txt >> data/local/lm/training_text.txt
+		fi
+		if [ $include_gp_train_in_lm = true ]; then
 			echo include gp train in lm
 			mkdir -p $tmpdir/gp_train
 			
 			grep \
 			-f conf/gp_train_spk.list $tmpdir/lists/trl.txt > \
-			$tmpdir/gp_train/text
+				$tmpdir/gp_train/files
 			
-			bash local/lowercase.sh $tmpdir/gp_train/text
+			python local/get_gp_prompts.py $tmpdir/gp_train/files > \
+				$tmpdir/gp_train/text
+			
+			python local/lowercase.py $tmpdir/gp_train/text > $tmpdir/gp_train/text_lowercase.txt
+			mv $tmpdir/gp_train/text_lowercase.txt $tmpdir/gp_train/text
 			bash local/ssconvert.sh $tmpdir/gp_train/text
 			bash local/remove_commas.sh $tmpdir/gp_train/text
 			cat $tmpdir/gp_train/text | expand -t 1 | dos2unix | sort -u -o $tmpdir/gp_train/text
@@ -340,6 +357,8 @@ if [ $stage -le 3 ]; then
 	$tmpdir/lang data/local/lm/threegram.arpa.gz data/local/dict/lexicon.txt \
 	data/lang
 fi
+
+exit
 
 # create ConstArpaLm format language model
 if [ $stage -le 4 ]; then
@@ -502,8 +521,6 @@ if [ $stage -le 17 ]; then
 	done
 	) &
 fi
-
-exit
 
 # chain models train, decode, and test
 if [ $stage -le 18 ]; then
