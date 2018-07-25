@@ -319,10 +319,9 @@ if [ $stage -le 3 ]; then
 				echo unzipping subtitles
 				gunzip -c $tmpdir/subs/subs.de.gz > $tmpdir/subs/subs.txt 
 			fi
-			#python local/subs_prepare_data.py $tmpdir/subs/subs.txt \
-			#	> $tmpdir/subs/subs_filtered.txt
-			#sort -u $tmpdir/subs/subs_filtered.txt > $tmpdir/subs/subs_uniq.txt
-			sort -u $tmpdir/subs/subs.txt > $tmpdir/subs/subs_uniq.txt
+			python local/subs_prepare_data.py $tmpdir/subs/subs.txt \
+				> $tmpdir/subs/subs_filtered.txt
+			sort -u $tmpdir/subs/subs_filtered.txt > $tmpdir/subs/subs_uniq.txt
 			python local/select_n.py 1000000 $tmpdir/subs/subs_uniq.txt \
 				> $tmpdir/subs/subs_final.txt
 			cat $tmpdir/subs/subs_final.txt >> data/local/lm/training_text.txt
@@ -357,8 +356,6 @@ if [ $stage -le 3 ]; then
 	$tmpdir/lang data/local/lm/threegram.arpa.gz data/local/dict/lexicon.txt \
 	data/lang
 fi
-
-exit
 
 # create ConstArpaLm format language model
 if [ $stage -le 4 ]; then
