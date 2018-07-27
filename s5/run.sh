@@ -144,68 +144,66 @@ if [ $stage -le 0 ]; then
 	# for i in {110..118}; do echo "Recordings-German-$i" >> conf/eval_spk.list; done
 
 	# Create train from Koeln data
-	for fld in train; do
-		# each fold will have a separate working directory
-		mkdir -p $tmpdir/$fld/lists
+	# each fold will have a separate working directory
+	mkdir -p $tmpdir/train/lists
 
-		# the conf/dev_spk.list file has a list of the speakers in the dev fold.
-		# the conf/train_spk.list file has a list of the speakers in the training fold.
-		# the conf/eval_spk.list file has a list of the speakers in the testing fold.
-		# The following command will get the list .wav files restricted to only the speakers in 			the current fold.
-		grep \
-			-f conf/${fld}_spk.list $tmpdir/lists/wav.txt > \
-			$tmpdir/$fld/lists/wav.txt
+	# the conf/dev_spk.list file has a list of the speakers in the dev fold.
+	# the conf/train_spk.list file has a list of the speakers in the training fold.
+	# the conf/eval_spk.list file has a list of the speakers in the testing fold.
+	# The following command will get the list .wav files restricted to only the speakers in 		the current fold.
+	grep \
+		-f conf/train_spk.list $tmpdir/lists/wav.txt > \
+		$tmpdir/train/lists/wav.txt
 
-		sort -o $tmpdir/$fld/lists/wav.txt $tmpdir/$fld/lists/wav.txt
+	sort -o $tmpdir/train/lists/wav.txt $tmpdir/train/lists/wav.txt
 
-		# Similarly for the .trl files that contain transliterations.
-		grep \
-			-f conf/${fld}_spk.list $tmpdir/lists/trl.txt > \
-			$tmpdir/$fld/lists/trl.txt
+	# Similarly for the .trl files that contain transliterations.
+	grep \
+		-f conf/train_spk.list $tmpdir/lists/trl.txt > \
+		$tmpdir/train/lists/trl.txt
 
-		sort -o $tmpdir/$fld/lists/trl.txt $tmpdir/$fld/lists/trl.txt
+	sort -o $tmpdir/train/lists/trl.txt $tmpdir/train/lists/trl.txt
 
-		# write a file with a file-id to utterance map. 
-		python local/get_prompts.py $tmpdir/$fld/lists/trl.txt > $tmpdir/$fld/prompts.tsv
-		# lowercase, ß to ss, remove commas in text files
-		bash local/lowercase.sh $tmpdir/$fld/prompts.tsv
-		bash local/remove_commas.sh $tmpdir/$fld/prompts.tsv
-		bash local/ssconvert.sh $tmpdir/$fld/prompts.tsv
+	# write a file with a file-id to utterance map. 
+	python local/get_prompts.py $tmpdir/train/lists/trl.txt > $tmpdir/train/prompts.tsv
+	# lowercase, ß to ss, remove commas in text files
+	bash local/lowercase.sh $tmpdir/train/prompts.tsv
+	bash local/remove_commas.sh $tmpdir/train/prompts.tsv
+	bash local/ssconvert.sh $tmpdir/train/prompts.tsv
 		
-		# Acoustic model training requires 4 files containing maps:
-		# 1. wav.scp
-		# 2. utt2spk
-		# 3. spk2utt
-		# 4. text
+	# Acoustic model training requires 4 files containing maps:
+	# 1. wav.scp
+	# 2. utt2spk
+	# 3. spk2utt
+	# 4. text
 
-		# make the required acoustic model training lists
-		# This is first done in the temporary working directory.
-		python local/make_wav_scp.py $tmpdir/$fld/lists/wav.txt > $tmpdir/$fld/lists/wav.scp
-		python local/make_utt2spk.py $tmpdir/$fld/lists/wav.txt > $tmpdir/$fld/lists/utt2spk
-		sort -o $tmpdir/$fld/lists/utt2spk $tmpdir/$fld/lists/utt2spk
-		cat $tmpdir/$fld/prompts.tsv > $tmpdir/$fld/lists/text
+	# make the required acoustic model training lists
+	# This is first done in the temporary working directory.
+	python local/make_wav_scp.py $tmpdir/train/lists/wav.txt > $tmpdir/train/lists/wav.scp
+	python local/make_utt2spk.py $tmpdir/train/lists/wav.txt > $tmpdir/train/lists/utt2spk
+	sort -o $tmpdir/train/lists/utt2spk $tmpdir/train/lists/utt2spk
+	cat $tmpdir/train/prompts.tsv > $tmpdir/train/lists/text
 		
-		utils/fix_data_dir.sh $tmpdir/$fld/lists
-		
-		# consolidate data lists into files under data
-		mkdir -p data/$fld
-		for x in wav.scp text utt2spk; do
-			cat $tmpdir/$fld/lists/$x | expand -t 1 | dos2unix | sort > data/$fld/$x
-		done
-		
-		# The spk2utt file can be generated from the utt2spk file. 
-		utils/utt2spk_to_spk2utt.pl data/$fld/utt2spk | sort > data/$fld/spk2utt
-		
-		utils/fix_data_dir.sh data/$fld	
+	utils/fix_data_dir.sh $tmpdir/train/lists
+
+	# consolidate data lists into files under data
+	mkdir -p data/train
+	for x in wav.scp text utt2spk; do
+		cat $tmpdir/train/lists/$x | expand -t 1 | dos2unix | sort > data/train/$x
 	done
 	
 	if [ $use_pseudolabeled_in_training = true ]; then
 		# combine pseudolabeled files with training files
 		cat data/unlabeled/wav.scp >> data/train/wav.scp
 		cat data/unlabeled/utt2spk >> data/train/utt2spk
-		cat data/unlabeled/spk2utt >> data/train/spk2utt
 		cat data/unlabeled/text >> data/train/text
 	fi
+		
+	# The spk2utt file can be generated from the utt2spk file. 
+	utils/utt2spk_to_spk2utt.pl data/train/utt2spk | sort > data/train/spk2utt
+		
+	utils/fix_data_dir.sh data/train
+	
 	
 	# Create dev and eval from GlobalPhone data
 	for fld in dev eval; do
@@ -260,9 +258,8 @@ if [ $stage -le 0 ]; then
 
 		utils/fix_data_dir.sh data/$fld
 	done
+	exit
 fi
-
-exit
 
 # Process the pronouncing dictionary
 if [ $stage -le 1 ]; then
