@@ -31,7 +31,7 @@ set -euo pipefail
 stage=0
 decode_nj=10
 train_set=train
-test_sets=
+test_sets="dev eval unlabeled"
 gmm=tri3b
 nnet3_affix=
 
@@ -257,7 +257,7 @@ if [ $stage -le 16 ]; then
   frames_per_chunk=$(echo $chunk_width | cut -d, -f1)
   rm $dir/.error 2>/dev/null || true
 
-  for data in dev eval unlabeled; do
+  for data in $test_sets; do
     (
       nspk=$(wc -l <data/${data}_hires/spk2utt)
       steps/nnet3/decode.sh \
@@ -293,7 +293,7 @@ if $test_online_decoding && [ $stage -le 17 ]; then
 
   rm $dir/.error 2>/dev/null || true
 
-  for data in dev eval unlabeled; do
+  for data in $test_sets; do
     (
       nspk=$(wc -l <data/${data}_hires/spk2utt)
       # note: we just give it "data/${data}" as it only uses the wav.scp, the
