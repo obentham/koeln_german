@@ -31,7 +31,7 @@ set -euo pipefail
 stage=0
 decode_nj=10
 train_set=train
-test_sets=dev
+test_sets=dev eval
 gmm=tri3b
 nnet3_affix=
 
@@ -302,9 +302,9 @@ if $test_online_decoding && [ $stage -le 17 ]; then
         --acwt 1.0 --post-decode-acwt 10.0 \
         --nj $nspk --cmd "$decode_cmd" \
         $tree_dir/graph_tgsmall data/${data} ${dir}_online/decode_tgsmall_${data} || exit 1
-      steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
-        data/lang_test_{tgsmall,tglarge} \
-       data/${data}_hires ${dir}_online/decode_{tgsmall,tglarge}_${data} || exit 1
+      #steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
+      #  data/lang_test_{tgsmall,tglarge} \
+      # data/${data}_hires ${dir}_online/decode_{tgsmall,tglarge}_${data} || exit 1
     ) || touch $dir/.error &
   done
   wait

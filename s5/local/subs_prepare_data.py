@@ -31,7 +31,7 @@ def has_specified_chars(line, chars_to_skip):
 
 def is_valid_length_line(line, lower_bound, upper_bound):
 	line_length = len(line.split())
-	return line_length > lower_bound and line_length < upper_bound:
+	return line_length > lower_bound and line_length < upper_bound
 
 
 for line in open(file_path):
@@ -45,7 +45,7 @@ for line in open(file_path):
 	
 	if is_valid_line:
 
-		# some manual lowercasingÄ
+		# some manual lowercasing
 		line = re.sub("Ü", "ü", line)
 		line = re.sub("Ä", "ä", line)
 		line = re.sub("Ö", "ö", line)
