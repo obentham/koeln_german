@@ -32,4 +32,4 @@ for x in file:
 	elif int(textFile) < 1000 :
 		append2 += "0"
 	
-	print append1 + spk + "0_" + append2 + textFile + " " + text
+	print append1 + spk + "_0" + append2 + textFile + " " + text
