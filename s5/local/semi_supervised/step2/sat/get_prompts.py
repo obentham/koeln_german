@@ -17,7 +17,7 @@ for x in file:
 	text = "a"
 	
 	append1 = ""
-	append2 = "UL"
+	append2 = ""
 	if int(spk) < 10 :
 		append1 = "000"
 	elif int(spk) < 100 :
@@ -32,4 +32,4 @@ for x in file:
 	elif int(textFile) < 1000 :
 		append2 += "0"
 	
-	print append1 + spk + "_" + append2 + textFile + " " + text
+	print append1 + spk + "0_" + append2 + textFile + " " + text

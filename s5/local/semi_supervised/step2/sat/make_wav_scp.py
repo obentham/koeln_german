@@ -16,7 +16,7 @@ for x in file:
 	textFile = match.group(2)
 	
 	append1 = ""
-	append2 = "UL"
+	append2 = ""
 	if int(spk) < 10 :
 		append1 = "000"
 	elif int(spk) < 100 :
@@ -31,4 +31,4 @@ for x in file:
 	elif int(textFile) < 1000 :
 		append2 += "0"
 	
-	print append1 + spk + "_" + append2 + textFile + " sox -b 16 -r 22050 " + x + " -r 16k -t .wav - |"
+	print append1 + spk + "_0" + append2 + textFile + " sox -b 16 -r 22050 " + x + " -r 16k -t .wav - |"
