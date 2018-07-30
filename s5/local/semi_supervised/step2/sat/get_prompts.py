@@ -26,10 +26,10 @@ for x in file:
 		append1 = "0"
 		
 	if int(textFile) < 10 :
-		append2 = "000"
+		append2 += "000"
 	elif int(textFile) < 100 :
-		append2 = "00"
+		append2 += "00"
 	elif int(textFile) < 1000 :
-		append2 = "0"
+		append2 += "0"
 	
 	print append1 + spk + "_" + append2 + textFile + " " + text
